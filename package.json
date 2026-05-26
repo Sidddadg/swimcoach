@@ -14,7 +14,7 @@
   "dependencies": {
     "@anthropic-ai/sdk": "^0.24.0",
     "@prisma/client": "^5.14.0",
-    "fit-parser": "^2.1.1",
+    "fit-parser": "^2.1.0",
     "next": "14.2.3",
     "prisma": "^5.14.0",
     "react": "^18",
