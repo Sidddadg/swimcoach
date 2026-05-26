@@ -76,6 +76,7 @@ export default function Dashboard() {
   });
   const [logLoading, setLogLoading] = useState(false);
   const [logSuccess, setLogSuccess] = useState(false);
+  const [seedError, setSeedError] = useState<string | null>(null);
 
   const loadActivities = () =>
     fetch("/api/activities?limit=15")
@@ -101,9 +102,17 @@ export default function Dashboard() {
 
   const handleSeedDemo = async () => {
     setSeeding(true);
+    setSeedError(null);
     try {
-      await fetch("/api/seed", { method: "POST" });
+      const res = await fetch("/api/seed", { method: "POST" });
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({}));
+        setSeedError(body.error ?? `Server error ${res.status} — check Vercel logs`);
+        return;
+      }
       await Promise.all([loadActivities(), loadUser()]);
+    } catch (e) {
+      setSeedError("Network error — " + (e instanceof Error ? e.message : String(e)));
     } finally {
       setSeeding(false);
     }
@@ -236,32 +245,39 @@ export default function Dashboard() {
       <main className="page-content">
         {/* Empty state seed banner */}
         {isEmpty && (
-          <div
-            style={{
-              background: "rgba(0,212,255,0.08)",
-              border: "1px solid rgba(0,212,255,0.25)",
-              borderRadius: "var(--radius)",
-              padding: "20px 24px",
-              marginBottom: 24,
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "space-between",
-              gap: 16,
-              flexWrap: "wrap",
-            }}
-          >
-            <div>
-              <div style={{ fontFamily: "var(--font-display)", fontWeight: 700, fontSize: 15, marginBottom: 4 }}>
-                No swim data yet
+          <>
+            <div
+              style={{
+                background: "rgba(0,212,255,0.08)",
+                border: "1px solid rgba(0,212,255,0.25)",
+                borderRadius: "var(--radius)",
+                padding: "20px 24px",
+                marginBottom: seedError ? 8 : 24,
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "space-between",
+                gap: 16,
+                flexWrap: "wrap",
+              }}
+            >
+              <div>
+                <div style={{ fontFamily: "var(--font-display)", fontWeight: 700, fontSize: 15, marginBottom: 4 }}>
+                  No swim data yet
+                </div>
+                <div style={{ fontSize: 13, color: "var(--text-muted)" }}>
+                  Load demo data to see the full experience — 15 sessions, laps, and AI coach context.
+                </div>
               </div>
-              <div style={{ fontSize: 13, color: "var(--text-muted)" }}>
-                Load demo data to see the full experience — 15 sessions, laps, and AI coach context.
-              </div>
+              <button onClick={handleSeedDemo} disabled={seeding} style={{ flexShrink: 0 }}>
+                {seeding ? "Loading…" : "Load demo data"}
+              </button>
             </div>
-            <button onClick={handleSeedDemo} disabled={seeding} style={{ flexShrink: 0 }}>
-              {seeding ? "Loading…" : "Load demo data"}
-            </button>
-          </div>
+            {seedError && (
+              <div style={{ marginBottom: 24, fontSize: 12, color: "#ff6b6b", fontFamily: "var(--font-mono)", padding: "8px 4px" }}>
+                Error: {seedError}
+              </div>
+            )}
+          </>
         )}
 
         {/* ── FEED ── */}
