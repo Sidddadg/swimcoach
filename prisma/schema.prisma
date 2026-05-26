@@ -1,0 +1,118 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id           String       @id @default(cuid())
+  email        String       @unique
+  name         String
+  avatarUrl    String?
+  bio          String?
+  goal         String?      // e.g. "1500m freestyle under 20min"
+  fitnessLevel String       @default("intermediate") // beginner | intermediate | advanced | elite
+  createdAt    DateTime     @default(now())
+  updatedAt    DateTime     @updatedAt
+
+  activities   Activity[]
+  following    Follow[]     @relation("follower")
+  followers    Follow[]     @relation("following")
+  kudos        Kudo[]
+  coachMessages CoachMessage[]
+
+  @@map("users")
+}
+
+model Activity {
+  id            String      @id @default(cuid())
+  userId        String
+  user          User        @relation(fields: [userId], references: [id])
+
+  // Core metadata
+  name          String
+  description   String?
+  startedAt     DateTime
+  durationSecs  Int         // total duration in seconds
+  source        String      // apple_health | garmin | samsung | fitbit | manual | fit_file | strava
+
+  // Swim specifics
+  poolLength    Int?        // 25 or 50 meters, null = open water
+  isOpenWater   Boolean     @default(false)
+  strokeType    String?     // freestyle | backstroke | breaststroke | butterfly | im | mixed
+
+  // Aggregate metrics
+  distanceMeters  Float
+  avgPaceSecPer100 Float?   // seconds per 100m
+  avgSwolf        Float?    // stroke count + seconds per length
+  avgHeartRate    Int?
+  maxHeartRate    Int?
+  calories        Int?
+  totalStrokes    Int?
+
+  // Raw + computed
+  rawData       String?     // JSON blob of raw device data
+  aiSummary     String?     // AI-generated post-workout summary
+
+  createdAt     DateTime    @default(now())
+
+  laps          Lap[]
+  kudos         Kudo[]
+
+  @@map("activities")
+}
+
+model Lap {
+  id              String    @id @default(cuid())
+  activityId      String
+  activity        Activity  @relation(fields: [activityId], references: [id], onDelete: Cascade)
+
+  lapNumber       Int
+  durationSecs    Float
+  distanceMeters  Float
+  strokeType      String?
+  strokeCount     Int?
+  swolf           Float?    // strokeCount + durationSecs (per length)
+  avgHeartRate    Int?
+  paceSecPer100   Float?
+
+  @@map("laps")
+}
+
+model Follow {
+  id          String   @id @default(cuid())
+  followerId  String
+  followingId String
+  follower    User     @relation("follower", fields: [followerId], references: [id])
+  following   User     @relation("following", fields: [followingId], references: [id])
+  createdAt   DateTime @default(now())
+
+  @@unique([followerId, followingId])
+  @@map("follows")
+}
+
+model Kudo {
+  id         String   @id @default(cuid())
+  userId     String
+  activityId String
+  user       User     @relation(fields: [userId], references: [id])
+  activity   Activity @relation(fields: [activityId], references: [id], onDelete: Cascade)
+  createdAt  DateTime @default(now())
+
+  @@unique([userId, activityId])
+  @@map("kudos")
+}
+
+model CoachMessage {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id])
+  role      String   // user | assistant
+  content   String
+  createdAt DateTime @default(now())
+
+  @@map("coach_messages")
+}
